@@ -14,14 +14,14 @@ Search for jobs on jobindex.dk using playwright-cli for browser automation.
 A browser session must be open. If not, open one:
 
 ```bash
-playwright-cli open https://www.jobindex.dk --headed
+# Headless (default, supports parallel execution)
+playwright-cli -s=jobindex open https://www.jobindex.dk
+
+# Headed (visible browser, for debugging)
+playwright-cli -s=jobindex open https://www.jobindex.dk --headed
 ```
 
-For headless operation (no visible browser):
-
-```bash
-playwright-cli open https://www.jobindex.dk
-```
+**Named session `-s=jobindex`** allows this skill to run in parallel with other job search skills. Use `-s=jobindex` on all subsequent commands.
 
 ## Workflow
 
@@ -31,15 +31,15 @@ On first visit, up to three popups appear. Dismiss them in order:
 
 ```bash
 # Cookie consent — click "Afvis" (reject)
-playwright-cli snapshot
+playwright-cli -s=jobindex snapshot
 # Find and click the "Afvis" button by ref
-playwright-cli click <ref-for-Afvis>
+playwright-cli -s=jobindex click <ref-for-Afvis>
 
 # AI assistant popup — click "Luk" (close)
-playwright-cli click <ref-for-Luk>
+playwright-cli -s=jobindex click <ref-for-Luk>
 
 # Jobagent popup (appears after first search) — click "Luk" inside dialog
-playwright-cli click <ref-for-dialog-Luk>
+playwright-cli -s=jobindex click <ref-for-dialog-Luk>
 ```
 
 **Important:** Refs change per session. Always take a snapshot first and find buttons by name:
@@ -54,7 +54,7 @@ Some popups may not appear. That's fine — just continue.
 The most efficient approach is constructing the URL directly:
 
 ```bash
-playwright-cli goto "https://www.jobindex.dk/jobsoegning?q=data+engineer"
+playwright-cli -s=jobindex goto "https://www.jobindex.dk/jobsoegning?q=data+engineer"
 ```
 
 For detailed URL patterns, see [url-reference.md](url-reference.md).
@@ -62,7 +62,7 @@ For detailed URL patterns, see [url-reference.md](url-reference.md).
 ### Step 3: Extract job listings
 
 ```bash
-playwright-cli run-code 'async page => {
+playwright-cli -s=jobindex run-code 'async page => {
   const jobs = await page.$$eval("div.PaidJob, div.jix_robotjob", cards => cards.map(card => {
     const title = card.querySelector("h4 a")?.textContent?.trim() || "";
     const url = card.querySelector("h4 a")?.href || "";
@@ -96,33 +96,33 @@ When the user wants jobs near a specific address/city, use the Geografi filter U
 
 ```bash
 # 1. Navigate to search results first
-playwright-cli goto "https://www.jobindex.dk/jobsoegning?q=administrativ"
+playwright-cli -s=jobindex goto "https://www.jobindex.dk/jobsoegning?q=administrativ"
 
 # 2. Dismiss any popups (see Step 1 above)
 
 # 3. Take snapshot, find and click Geografi button
-playwright-cli snapshot
-playwright-cli click <ref-for-Geografi-button>
+playwright-cli -s=jobindex snapshot
+playwright-cli -s=jobindex click <ref-for-Geografi-button>
 
 # 4. Fill km radius (spinbutton "Hvor langt vil du have til arbejde?")
-playwright-cli fill <ref-for-km-spinbutton> "30"
+playwright-cli -s=jobindex fill <ref-for-km-spinbutton> "30"
 
 # 5. Fill address (textbox "Fra hvilken adresse?")
-playwright-cli fill <ref-for-address-textbox> "Skævinge"
+playwright-cli -s=jobindex fill <ref-for-address-textbox> "Skævinge"
 
 # 6. Take snapshot to see autocomplete suggestions
-playwright-cli snapshot
+playwright-cli -s=jobindex snapshot
 
 # 7. Click the desired address suggestion (role: option)
-playwright-cli click <ref-for-address-option>
+playwright-cli -s=jobindex click <ref-for-address-option>
 
 # 8. CRITICAL: Dismiss the autocomplete dropdown before clicking submit
 #    Press Tab to move focus away (do NOT press Escape — it closes the whole panel)
-playwright-cli press Tab
+playwright-cli -s=jobindex press Tab
 
 # 9. Take snapshot, find and click "Vis X job" button
-playwright-cli snapshot
-playwright-cli click <ref-for-vis-job-button>
+playwright-cli -s=jobindex snapshot
+playwright-cli -s=jobindex click <ref-for-vis-job-button>
 ```
 
 ### Known pitfalls
@@ -135,7 +135,7 @@ playwright-cli click <ref-for-vis-job-button>
 
 If "Vis X job" is blocked by overlay, use force click as last resort:
 ```bash
-playwright-cli run-code 'async page => { await page.getByRole("button", { name: /Vis.*job/ }).click({ force: true }); }'
+playwright-cli -s=jobindex run-code 'async page => { await page.getByRole("button", { name: /Vis.*job/ }).click({ force: true }); }'
 ```
 
 ## Using the Kategorier Filter
@@ -156,6 +156,6 @@ Works similarly to Geografi but with category autocomplete:
 - **Pagination:** Add `&page=2`, `&page=3` etc. ~20 results per page.
 - **Multiple pages:** To get more results, loop through pages by incrementing the page parameter.
 - **Popups:** On a fresh session you MUST dismiss popups before extracting data. After the first dismissal in a session, they won't reappear.
-- **Browser reuse:** If a browser is already open from a previous command, just use `playwright-cli goto` — no need to reopen.
+- **Browser reuse:** If a browser is already open from a previous command, just use `playwright-cli -s=jobindex goto` — no need to reopen.
 - **Always snapshot before interacting** — refs are session-specific and change with every snapshot.
 - **Prefer URL construction** over UI interaction when possible — it's faster and avoids filter panel pitfalls.

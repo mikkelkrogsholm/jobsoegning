@@ -14,26 +14,34 @@ This skill searches for jobs on **jobnet.dk**, Denmark's official public job por
 Before running a search, ensure you have an open browser session:
 
 ```bash
-playwright-cli open https://jobnet.dk/find-job --headed
+# Headless (default, supports parallel execution)
+playwright-cli -s=jobnet open https://jobnet.dk/find-job
+
+# Headed (visible browser, for debugging)
+playwright-cli -s=jobnet open https://jobnet.dk/find-job --headed
 ```
 
-This opens a visible browser window that will persist across commands.
+**Named session `-s=jobnet`** allows this skill to run in parallel with other job search skills. Use `-s=jobnet` on all subsequent commands.
 
 ## Workflow
 
 ### Step 1: Dismiss Cookie Banner
 
-On first visit, dismiss the cookie banner by clicking "Kun nødvendige cookies":
+On first visit, dismiss the cookie banner:
 
 ```bash
-playwright-cli snapshot
+playwright-cli -s=jobnet run-code 'async page => {
+  try {
+    await page.waitForTimeout(1500);
+    await page.getByRole("button", { name: "Kun nødvendige cookies" }).click({ timeout: 3000 });
+    await page.waitForTimeout(1000);
+  } catch (e) {
+    console.log("No cookie dialog or already dismissed");
+  }
+}'
 ```
 
-Look for the cookie dialog and click the minimal consent button:
-
-```bash
-playwright-cli click "ref_XX"  # Reference to "Kun nødvendige cookies" button
-```
+**Note:** Use try/catch because the dialog only appears on first visit.
 
 ### Step 2: Navigate to Search Results
 
@@ -48,7 +56,7 @@ https://jobnet.dk/find-job?searchString=systemudvikler&regions=HovedstadenOgBorn
 Navigate using playwright-cli:
 
 ```bash
-playwright-cli open "https://jobnet.dk/find-job?searchString=YOUR_QUERY&regions=REGION_CODE" --headed
+playwright-cli -s=jobnet goto "https://jobnet.dk/find-job?searchString=YOUR_QUERY&regions=REGION_CODE"
 ```
 
 Wait for results to load (usually 1-2 seconds).
@@ -58,9 +66,11 @@ Wait for results to load (usually 1-2 seconds).
 Use the following JavaScript code to extract job data from the page:
 
 ```bash
-playwright-cli run-code '
+playwright-cli -s=jobnet run-code '
 async page => {
-  const jobs = Array.from(document.querySelectorAll("article")).map(a => {
+  await page.waitForTimeout(2000);
+  const jobs = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll("article")).map(a => {
     const title = a.querySelector("h3 p")?.textContent?.trim();
     const titleLink = a.querySelector("h3")?.closest("a");
     const company = titleLink?.querySelectorAll("p")?.[1]?.textContent?.trim();
@@ -84,6 +94,7 @@ async page => {
       snippet
     };
   });
+  });
   return JSON.stringify(jobs, null, 2);
 }
 '
@@ -91,12 +102,19 @@ async page => {
 
 **Note on pagination:** Jobnet uses infinite scroll with a "Indlæs flere job" (Load more jobs) button. The initial page load shows 10 results. To load more:
 
-1. Take a snapshot: `playwright-cli snapshot`
-2. Find the "Indlæs flere job" button reference
-3. Click it: `playwright-cli click "ref_XX"`
-4. Wait briefly and re-extract jobs
+```bash
+playwright-cli -s=jobnet run-code 'async page => {
+  try {
+    await page.getByRole("button", { name: /Indlæs flere job/ }).click({ timeout: 3000 });
+    await page.waitForTimeout(2000);
+    console.log("Loaded more jobs");
+  } catch (e) {
+    console.log("No more jobs to load");
+  }
+}'
+```
 
-Repeat as needed to gather more results.
+Repeat as needed, then re-extract jobs. The list grows cumulatively (10 → 20 → 30).
 
 ### Step 4: Present Results
 
@@ -250,23 +268,20 @@ Do not combine these modes in a single search.
 
 ### Handling Pagination
 
-Initial load shows 10 jobs. To load more:
+Initial load shows 10 jobs. To load more, use the same pattern as Step 3:
 
 ```bash
-# 1. Take snapshot to find "Indlæs flere job" button
-playwright-cli snapshot
-
-# 2. Click the button (look for text "Indlæs flere job")
-playwright-cli click "ref_XX"
-
-# 3. Wait briefly
-sleep 2
-
-# 4. Re-extract jobs (will now include newly loaded jobs)
-playwright-cli run-code '[extraction code from Step 3]'
+playwright-cli -s=jobnet run-code 'async page => {
+  try {
+    await page.getByRole("button", { name: /Indlæs flere job/ }).click({ timeout: 3000 });
+    await page.waitForTimeout(2000);
+  } catch (e) {
+    console.log("No more jobs to load");
+  }
+}'
 ```
 
-Repeat this cycle to load 20, 30, 40+ jobs.
+Then re-run the extraction code. The article list grows cumulatively (10 → 20 → 30+).
 
 ### Extracting Full Job Details
 
@@ -281,7 +296,7 @@ To extract full job descriptions:
 **Example detail extraction** (selectors may need adjustment):
 
 ```bash
-playwright-cli run-code '
+playwright-cli -s=jobnet run-code '
 async page => {
   const title = document.querySelector("h1")?.textContent?.trim();
   const description = document.querySelector("[class*=description]")?.innerHTML;
@@ -340,31 +355,25 @@ Search results may take 1-3 seconds to load. After navigating to a search URL, w
 ### IT Developer Jobs in Copenhagen Area
 
 ```bash
-playwright-cli open "https://jobnet.dk/find-job?searchString=systemudvikler&regions=HovedstadenOgBornholm&workHoursType=FullTime&employmentDurationType=Permanent" --headed
+playwright-cli -s=jobnet goto "https://jobnet.dk/find-job?searchString=systemudvikler&regions=HovedstadenOgBornholm&workHoursType=FullTime&employmentDurationType=Permanent"
 ```
 
 ### Jobs Near Postal Code 2100 (Østerbro) Within 25km
 
 ```bash
-playwright-cli open "https://jobnet.dk/find-job?searchString=udvikler&postalCode=2100&kmRadius=25&workHoursType=FullTime" --headed
+playwright-cli -s=jobnet goto "https://jobnet.dk/find-job?searchString=udvikler&postalCode=2100&kmRadius=25&workHoursType=FullTime"
 ```
 
 ### Remote/Flexible Jobs (No Fixed Workplace)
 
 ```bash
-playwright-cli open "https://jobnet.dk/find-job?searchString=konsulent&workplaceFilter=NonFixed&workHoursType=FullTime" --headed
+playwright-cli -s=jobnet goto "https://jobnet.dk/find-job?searchString=konsulent&workplaceFilter=NonFixed&workHoursType=FullTime"
 ```
 
 ### IT Jobs Sorted by Application Deadline
 
 ```bash
-playwright-cli open "https://jobnet.dk/find-job?searchString=IT&occupationAreas=110000&orderType=ApplicationDate" --headed
+playwright-cli -s=jobnet goto "https://jobnet.dk/find-job?searchString=IT&occupationAreas=110000&orderType=ApplicationDate"
 ```
 
-## Future Improvements
 
-1. **Discover more occupation codes:** Build a comprehensive mapping of all Fagområde and Kategori codes
-2. **Auto-pagination:** Create a script that automatically clicks "Indlæs flere job" until no more results
-3. **Detail page extraction:** Add structured extraction for full job detail pages
-4. **Semantic selectors:** Replace hash-based CSS classes with more stable semantic selectors
-5. **Search result deduplication:** Track and filter out duplicate jobs when loading multiple pages

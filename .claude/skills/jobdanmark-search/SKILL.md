@@ -13,10 +13,15 @@ This skill searches for jobs on jobdanmark.dk using playwright-cli automation.
 
 **You MUST have an open browser session before running any commands.**
 
-Start a headed browser session:
 ```bash
-playwright-cli open "https://jobdanmark.dk" --headed
+# Headless (default, supports parallel execution)
+playwright-cli -s=jobdanmark open "https://jobdanmark.dk"
+
+# Headed (visible browser, for debugging)
+playwright-cli -s=jobdanmark open "https://jobdanmark.dk" --headed
 ```
+
+**Named session `-s=jobdanmark`** allows this skill to run in parallel with other job search skills. Use `-s=jobdanmark` on all subsequent commands.
 
 Wait a few seconds for the page to load before proceeding.
 
@@ -27,7 +32,7 @@ Wait a few seconds for the page to load before proceeding.
 On fresh sessions, dismiss the Didomi cookie consent dialog:
 
 ```bash
-playwright-cli run-code 'async page => {
+playwright-cli -s=jobdanmark run-code 'async page => {
   try {
     await page.waitForTimeout(1500);
     await page.getByRole("button", { name: /Afvis og luk/ }).click({ timeout: 3000 });
@@ -46,7 +51,7 @@ Build the search URL using query parameters and navigate:
 
 **Basic search (keyword only):**
 ```bash
-playwright-cli run-code 'async page => {
+playwright-cli -s=jobdanmark run-code 'async page => {
   const searchUrl = "https://jobdanmark.dk/jobsoeger/find-job?freetext=data%20analyst";
   await page.goto(searchUrl, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(2000);
@@ -55,7 +60,7 @@ playwright-cli run-code 'async page => {
 
 **Search with filters (location, type, category):**
 ```bash
-playwright-cli run-code 'async page => {
+playwright-cli -s=jobdanmark run-code 'async page => {
   const params = new URLSearchParams({
     freetext: "softwareudvikler",
     location: "København",
@@ -73,7 +78,7 @@ playwright-cli run-code 'async page => {
 **Alternative (unicode escape):**
 ```bash
 # Replace & with \u0026 in the URL string
-playwright-cli open "https://jobdanmark.dk/jobsoeger/find-job?freetext=udvikler\u0026location=Odense"
+playwright-cli -s=jobdanmark open "https://jobdanmark.dk/jobsoeger/find-job?freetext=udvikler\u0026location=Odense"
 ```
 
 ### Step 3: Extract Job Listings
@@ -81,7 +86,7 @@ playwright-cli open "https://jobdanmark.dk/jobsoeger/find-job?freetext=udvikler\
 Extract job data from the Vue.js app layer using page.evaluate():
 
 ```bash
-playwright-cli run-code 'async page => {
+playwright-cli -s=jobdanmark run-code 'async page => {
   await page.waitForTimeout(2000);
   const jobs = await page.evaluate(() => {
     const jobLinks = document.querySelectorAll("a.job-list");
@@ -129,7 +134,7 @@ Format the extracted JSON into a readable summary for the user:
 
 **Load more results (if needed):**
 ```bash
-playwright-cli run-code 'async page => {
+playwright-cli -s=jobdanmark run-code 'async page => {
   try {
     await page.getByRole("button", { name: /Indlæs flere job/ }).click({ timeout: 3000 });
     await page.waitForTimeout(2000);
@@ -219,7 +224,7 @@ const url = "https://jobdanmark.dk/jobsoeger/find-job?" + params.toString();
 **Bad:**
 ```bash
 # Shell treats & as background operator - NEVER do this
-playwright-cli open "https://jobdanmark.dk/jobsoeger/find-job?freetext=udvikler&location=Aarhus"
+playwright-cli -s=jobdanmark open "https://jobdanmark.dk/jobsoeger/find-job?freetext=udvikler&location=Aarhus"
 ```
 
 ### Vue.js App Layer
@@ -273,7 +278,7 @@ If no jobs match, the page shows "Ingen job matcher din søgning" (No jobs match
 
 **Search for full-time IT jobs in Copenhagen:**
 ```bash
-playwright-cli run-code 'async page => {
+playwright-cli -s=jobdanmark run-code 'async page => {
   const params = new URLSearchParams({
     freetext: "softwareudvikler",
     location: "København",
@@ -287,7 +292,7 @@ playwright-cli run-code 'async page => {
 
 **Search for part-time jobs in Odense (postal code):**
 ```bash
-playwright-cli run-code 'async page => {
+playwright-cli -s=jobdanmark run-code 'async page => {
   const params = new URLSearchParams({
     freetext: "butiksassistent",
     location: "5000",
@@ -300,7 +305,7 @@ playwright-cli run-code 'async page => {
 
 **Broad keyword search (no filters):**
 ```bash
-playwright-cli run-code 'async page => {
+playwright-cli -s=jobdanmark run-code 'async page => {
   await page.goto("https://jobdanmark.dk/jobsoeger/find-job?freetext=data%20analyst");
   await page.waitForTimeout(2000);
 }'

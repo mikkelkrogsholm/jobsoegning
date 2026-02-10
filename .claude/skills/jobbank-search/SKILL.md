@@ -14,14 +14,14 @@ Search for academic and highly educated positions on Akademikernes Jobbank using
 Before searching, ensure you have an open browser session:
 
 ```bash
-# Open a visible browser (recommended for debugging)
-playwright-cli open https://jobbank.dk/job/ --headed
+# Headless (default, supports parallel execution)
+playwright-cli -s=jobbank open https://jobbank.dk/job/
 
-# Or headless mode for automation
-playwright-cli open https://jobbank.dk/job/
+# Headed (visible browser, for debugging)
+playwright-cli -s=jobbank open https://jobbank.dk/job/ --headed
 ```
 
-**IMPORTANT:** On fresh sessions, dismiss the cookie consent dialog by clicking "Accepter valgte" before proceeding.
+**Named session `-s=jobbank`** allows this skill to run in parallel with other job search skills. Use `-s=jobbank` on all subsequent commands.
 
 ## Workflow
 
@@ -30,11 +30,18 @@ playwright-cli open https://jobbank.dk/job/
 On first visit, dismiss the cookie dialog:
 
 ```bash
-playwright-cli snapshot
-# Look for "Accepter valgte" button
-playwright-cli click 'button:has-text("Accepter valgte")'
-playwright-cli wait 1000
+playwright-cli -s=jobbank run-code 'async page => {
+  try {
+    await page.waitForTimeout(1500);
+    await page.getByRole("button", { name: "Accepter valgte" }).click({ timeout: 3000 });
+    await page.waitForTimeout(1000);
+  } catch (e) {
+    console.log("No cookie dialog or already dismissed");
+  }
+}'
 ```
+
+**Note:** Use try/catch because the dialog only appears on first visit.
 
 ### Step 2: Navigate to Search Results
 
@@ -44,22 +51,22 @@ Example searches:
 
 ```bash
 # Simple keyword search
-playwright-cli goto "https://jobbank.dk/job/?key=data+scientist"
+playwright-cli -s=jobbank goto "https://jobbank.dk/job/?key=data+scientist"
 
 # With location filter (Copenhagen area)
-playwright-cli goto "https://jobbank.dk/job/?key=python&amt=2"
+playwright-cli -s=jobbank goto "https://jobbank.dk/job/?key=python&amt=2"
 
 # Full-time jobs in IT education area
-playwright-cli goto "https://jobbank.dk/job/?key=developer&cvtype=3&udd=24"
+playwright-cli -s=jobbank goto "https://jobbank.dk/job/?key=developer&cvtype=3&udd=24"
 
 # Multiple locations (repeat param)
-playwright-cli goto "https://jobbank.dk/job/?key=engineer&amt=2&amt=8"
+playwright-cli -s=jobbank goto "https://jobbank.dk/job/?key=engineer&amt=2&amt=8"
 
 # Remote work positions
-playwright-cli goto "https://jobbank.dk/job/?key=consultant&fjernarbejde=helt"
+playwright-cli -s=jobbank goto "https://jobbank.dk/job/?key=consultant&fjernarbejde=helt"
 
 # Paginated results (page 2)
-playwright-cli goto "https://jobbank.dk/job/?key=project+manager&page=2"
+playwright-cli -s=jobbank goto "https://jobbank.dk/job/?key=project+manager&page=2"
 ```
 
 See `url-reference.md` for complete filter documentation.
@@ -69,7 +76,7 @@ See `url-reference.md` for complete filter documentation.
 Use the following JavaScript code to extract all job listings from the current page:
 
 ```bash
-playwright-cli run-code 'async page => {
+playwright-cli -s=jobbank run-code 'async page => {
   const jobs = await page.evaluate(() => {
     return Array.from(document.querySelectorAll("div.job-item")).map(item => {
       const id = item.getAttribute("name");
@@ -206,34 +213,34 @@ See `url-reference.md` for complete filter ID tables.
 ### Find Data Science Jobs in Copenhagen
 
 ```bash
-playwright-cli open https://jobbank.dk/job/ --headed
-playwright-cli click 'button:has-text("Accepter valgte")'
-playwright-cli goto "https://jobbank.dk/job/?key=data+scientist&amt=2"
-playwright-cli run-code 'async page => { /* extraction code */ }'
+playwright-cli -s=jobbank open https://jobbank.dk/job/ --headed
+# Dismiss cookie dialog (see Step 1)
+playwright-cli -s=jobbank goto "https://jobbank.dk/job/?key=data+scientist&amt=2"
+playwright-cli -s=jobbank run-code 'async page => { /* extraction code */ }'
 ```
 
 ### Find Remote IT Jobs for New Graduates
 
 ```bash
-playwright-cli goto "https://jobbank.dk/job/?udd=24&fjernarbejde=helt&andet=2"
-playwright-cli run-code 'async page => { /* extraction code */ }'
+playwright-cli -s=jobbank goto "https://jobbank.dk/job/?udd=24&fjernarbejde=helt&andet=2"
+playwright-cli -s=jobbank run-code 'async page => { /* extraction code */ }'
 ```
 
 ### Browse Multiple Pages of Project Manager Jobs
 
 ```bash
 # Page 1
-playwright-cli goto "https://jobbank.dk/job/?key=project+manager"
-playwright-cli run-code 'async page => { /* extraction code */ }'
+playwright-cli -s=jobbank goto "https://jobbank.dk/job/?key=project+manager"
+playwright-cli -s=jobbank run-code 'async page => { /* extraction code */ }'
 
 # Page 2
-playwright-cli goto "https://jobbank.dk/job/?key=project+manager&page=2"
-playwright-cli run-code 'async page => { /* extraction code */ }'
+playwright-cli -s=jobbank goto "https://jobbank.dk/job/?key=project+manager&page=2"
+playwright-cli -s=jobbank run-code 'async page => { /* extraction code */ }'
 ```
 
 ### Find Full-Time Software Jobs in Multiple Cities
 
 ```bash
-playwright-cli goto "https://jobbank.dk/job/?key=software&cvtype=3&erf=31&amt=2&amt=8"
-playwright-cli run-code 'async page => { /* extraction code */ }'
+playwright-cli -s=jobbank goto "https://jobbank.dk/job/?key=software&cvtype=3&erf=31&amt=2&amt=8"
+playwright-cli -s=jobbank run-code 'async page => { /* extraction code */ }'
 ```
